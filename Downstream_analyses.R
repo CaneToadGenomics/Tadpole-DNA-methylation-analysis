@@ -41,4 +41,53 @@ mydata_dmr.filtered <- as.data.frame(mydata_dmr.filtered)
 
 write.table(mydata_dmr.filtered, file = "/path/to/DMR.txt", sep = "\t", row.names = FALSE, col.names= FALSE, quote = FALSE)
 
-2.
+
+2. GO analysis
+
+library(topGO)
+library(GO.db)
+library(biomaRt)
+library(Rgraphviz)
+
+exp_data = read.table(file.choose(), header=TRUE, sep=',')
+bg_genes = as.character(exp_data[,1]) ### Background genes.
+length(bg_genes)
+
+candidate_list = read.table(file.choose(), header=TRUE, sep=',')
+dm_genes = as.character(candidate_list[,1]) ### Genes of interest.
+length(dm_genes)
+
+gene_id_to_go = readMappings(file = "gene_cat.txt") ### Create GO db for genes to be used.
+
+geneList = factor(as.integer(bg_genes %in% dm_genes))
+names(geneList) = bg_genes
+
+GOdata = new('topGOdata', ontology = 'BP', allGenes = geneList, annot = annFUN.gene2GO, gene2GO = gene_id_to_go)
+
+weight_fisher_result = runTest(GOdata, algorithm = 'weight01', statistic = 'fisher')
+
+allGO = usedGO(GOdata)
+results_table = GenTable(GOdata, P_value = weight_fisher_result, orderBy = "P_value", topNodes = length(allGO))
+
+myterms = results_table$GO.ID
+mygenes = genesInTerm(GOdata, myterms)
+ 
+var=c()
+for (i in 1:length(myterms))
+{
+myterm=myterms[i]
+mygenesforterm= mygenes[myterm][[1]]
+mygenesforterm=paste(mygenesforterm, collapse=',')
+var[i]=paste("GOTerm",myterm,"genes-",mygenesforterm)
+}
+
+write.table(var,"genetoGOmapping.txt",sep="\t",quote=F)
+
+results_table$P_value <- as.numeric(results_table$P_value)
+results_tableb <- results_table[results_table$P_value < 0.05,]
+results_tableb <- results_tableb[,c("GO.ID","Term","Annotated","Significant","P_value")]
+results_tableb$ratio <- results_tableb$Significant/results_tableb$Annotated
+
+ggdata <- results_tableb
+ggdata$Term <- factor(ggdata$Term, levels = rev(ggdata$Term))
+gg1 <- ggplot(ggdata, aes(x = Term, y = -log10(P_value), size = Significant, fill = ratio)) + expand_limits(y = 1) + geom_point(shape = 21) + scale_size(range = c(2.5,12.5)) + scale_fill_continuous(low = 'royalblue', high = 'red4') + xlab('') + ylab('-log10(P_value)') + labs(title = 'GO Biological processes') + theme_bw(base_size = 24) + theme(legend.position = 'right', legend.background = element_rect(), plot.title = element_text(angle = 0, size = 16, face = 'bold', vjust = 1), plot.subtitle = element_text(angle = 0, size = 14, face = 'bold', vjust = 1), plot.caption = element_text(angle = 0, size = 12, face = 'bold', vjust = 1), axis.text.x = element_text(angle = 0, size = 12, face = 'bold', hjust = 1.10), axis.text.y = element_text(angle = 0, size = 12, face = 'bold', vjust = 0.5), axis.title = element_text(size = 12, face = 'bold'), axis.title.x = element_text(size = 12, face = 'bold'), axis.title.y = element_text(size = 12, face = 'bold'), axis.line = element_line(colour = 'black'), legend.key = element_blank(), legend.key.size = unit(1, "cm"), legend.text = element_text(size = 14, face = "bold"), title = element_text(size = 14, face = "bold")) + coord_flip()
