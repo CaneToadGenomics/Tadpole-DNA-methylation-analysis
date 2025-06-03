@@ -6,4 +6,4 @@ It contains x files:
 
 Pre-processing_genome_methylation-calling.sh # Scripts to perform data pre-processing, prepare bisulfite genome, map reads to bisulfite genome, and extract methylation calls.
 
-Downstream_analyses.R # R scripts to perform differential methylation analysis.
+Downstream_analyses.R # R scripts to perform differential methylation analysis, and Gene Ontology analysis.
