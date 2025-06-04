@@ -1,4 +1,4 @@
-# DNA-methylation-analysis
+# Tadpole DNA-methylation-analysis
 
 This repository contains scripts related to the analyses present in the paper "Is epigenetics driving rapid phenotypic changes in the invasive cane toad (Rhinella marina)?; Boris Yagound, Hongyuan Chen, Roshmi R. Sarma, Lee A. Rollins".
 
