@@ -1,4 +1,4 @@
-1. Map high-quality and adaptor-trimmed reads to cane toad genome (BS-Seeker2)
+1. Map high-quality and adaptor-trimmed reads to genome (BS-Seeker2)
 
 module load python/3.7.4
 module load bowtie2
@@ -12,7 +12,7 @@ python /path/to/BSseeker2/bs_seeker2-call_methylation.py --rm-SX --rm-CCGG -i /p
 
 2. Call SNPs (CGmapTools)
 
-cgmaptools snv -i /path/to/input/file.ATCGmap.gz -m bayes -v /path/to/output/file.vcf -o /path/to/output/file.snv --bayes-e = 0.01 --bayes-dynamicP
+cgmaptools snv -i /path/to/input/file.ATCGmap.gz -m bayes -v /path/to/output/file.vcf -o /path/to/output/file.snv --bayes-e=0.01 --bayes-dynamicP
 
 
 3. Compute depth of coverage for all mapped positions (SAMtools)
@@ -23,27 +23,33 @@ module load htslib/1.15.1
 samtools depth /path/to/input/file.bam > /path/to/output/file.AverageCoverage
 
 
-4. Variant filtering (VCFtools 0.1.14)
+4. Calculate 99th percentile depth of coverage after excluding reads with less than 10-fold coverage (R)
+
+module load r/4.3.0
+library(VariantAnnotation)
+
+vcf <- readVcf(/path/to/output/file.vcf, genome = "genome")
+dp_matrix <- geno(vcf)$DP
+dp_values <- as.vector(dp_matrix)
+dp_filtered <- dp_values[!is.na(dp_values) & dp_values >= 10]
+percentile_99 <- quantile(dp_filtered, 0.99)
+
+
+5. Variant filtering (VCFtools)
 
 module load samtools/1.15.1
 module load htslib/1.15.1
 module load vcftools/0.1.14
 
-bgzip -k < /srv/scratch/z3533697/ASMok/CGmaptools/snp2/${i}.DP.filtered.vcf > /srv/scratch/z3533697/ASMok/CGmaptools/snp2/${i}.DP.filtered.vcf.gz
-tabix -p vcf /srv/scratch/z3533697/ASMok/CGmaptools/snp2/${i}.DP.filtered.vcf.gz
+vcftools --vcf /path/to/file.vcf --minDP 10 --maxDP percentile_99 --remove-filtered-all --recode --recode-INFO-all --out /path/to/output/file.DP  ###'percentile_99' should be an integer.
 
-vcftools --vcf /srv/scratch/z3533697/ASMok/CGmaptools/snp2/B10.recode.vcf.recode.vcf --minDP 10 --maxDP 424 --remove-filtered-all --recode --recode-INFO-all --out /srv/scratch/z3533697/ASMok/CGmaptools/snp2/B10.DP
-sed '/\.\/\./d' /srv/scratch/z3533697/ASMok/CGmaptools/snp2/B10.DP.recode.vcf > /srv/scratch/z3533697/ASMok/CGmaptools/snp2/B10.DP.filtered.vcf
-
-(DP) < 10 and > 99.9th percentile
+sed '/\.\/\./d' /path/to/output/file.DP.recode.vcf > /path/to/output/file.DP.filtered.vcf
 
 
-5. Predict allele-specific DNA methylation (CGmapTools)
+6. Predict allele-specific DNA methylation (CGmapTools)
 
 module load samtools/1.15.1
 module load r/4.3.1
 module load python
 
-cgmaptools asm -m ass -L 0.4 -H 0.6 -r /path/to/genome/genome.fasta -b /path/to/input/file.bam -l /path/to/input/file.filtered.vcf > /path/to/output/file.asm
-
-cgmaptools asm -m ass -r /srv/scratch/z3533697/cane_toad/canetoad.v2.2.fasta -b /srv/scratch/rollins/Yagound-CaneToadMethylation-Mar24/BSseeker/B3.out.bam_sorted.bam -l /srv/scratch/z3533697/ASMok/CGmaptools/snp2/B3.DP.filtered.vcf > /srv/scratch/z3533697/ASMok/CGmaptools/asm/B3.default.asm
+cgmaptools asm -m ass -L 0.4 -H 0.6 -r /path/to/genome/genome.fasta -b /path/to/input/file.bam -l /path/to/input/file.DP.filtered.vcf > /path/to/output/file.asm
